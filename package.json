@@ -1,7 +1,7 @@
 {
   "name": "fluentcraft-launcher",
   "productName": "FluentCraft Launcher",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Лаунчер для Minecraft Java Edition в стиле Windows 11: сборки и моды из Modrinth и CurseForge, оффлайн-аккаунты.",
   "main": "main.js",
   "author": "FluentCraft",
@@ -9,7 +9,7 @@
   "private": true,
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder --win --x64",
+    "dist": "electron-builder --win --x64 --publish never",
     "pack": "electron-builder --dir",
     "check": "node scripts/check.js"
   },

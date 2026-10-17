@@ -1,0 +1,67 @@
+{
+  "name": "fluentcraft-launcher",
+  "productName": "FluentCraft Launcher",
+  "version": "1.0.0",
+  "description": "Лаунчер для Minecraft Java Edition в стиле Windows 11: сборки и моды из Modrinth и CurseForge, оффлайн-аккаунты.",
+  "main": "main.js",
+  "author": "FluentCraft",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win --x64",
+    "pack": "electron-builder --dir",
+    "check": "node scripts/check.js"
+  },
+  "dependencies": {
+    "adm-zip": "^0.5.16",
+    "minecraft-launcher-core": "^3.18.2"
+  },
+  "devDependencies": {
+    "electron": "^38.0.0",
+    "electron-builder": "^26.0.0"
+  },
+  "build": {
+    "appId": "dev.fluentcraft.launcher",
+    "productName": "FluentCraft Launcher",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "src/**/*",
+      "renderer/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "language": "1049",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "artifactName": "FluentCraft-Launcher-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "FluentCraft-Launcher-Portable-${version}.${ext}"
+    }
+  }
+}

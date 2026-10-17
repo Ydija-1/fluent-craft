@@ -69,6 +69,7 @@ console.log(`синтаксис: ${files.length} файлов — ок`);
   let seen = 0;
   await net.download(url, dest, { sha1, onProgress: (g) => { seen = g; } });
   assert.strictEqual(seen, body.length);
+  assert.ok(net.getNetLog().some((e) => e.status === 200 && e.url.endsWith('/f.jar')), 'сетевой журнал пуст');
   await net.download(url, dest, { sha1 }); // уже скачан — второй запрос не нужен
   assert.strictEqual(hits, 1);
   await assert.rejects(net.download(url, path.join(P.cache, 'bad.jar'), { sha1: '0'.repeat(40), retries: 0 }), /Хеш/);
@@ -78,6 +79,17 @@ console.log(`синтаксис: ${files.length} файлов — ок`);
   assert.ok(peak <= 4);
   srv.close();
   console.log('загрузка файлов — ок');
+
+  // редакции: обычная по умолчанию, Dev — по переменной окружения; конфиг Dev-сборки согласован с основным
+  const edition = (env) => execFileSync(process.execPath, ['-e', "console.log(require('./src/main/edition').edition)"], { cwd: root, env: { ...process.env, ...env } }).toString().trim();
+  assert.strictEqual(edition({ FLUENTCRAFT_DEV: '' }), 'stable');
+  assert.strictEqual(edition({ FLUENTCRAFT_DEV: '1' }), 'dev');
+  const devCfg = JSON.parse(fs.readFileSync(path.join(root, 'electron-builder.dev.json'), 'utf8'));
+  const mainCfg = require('../package.json').build;
+  assert.notStrictEqual(devCfg.appId, mainCfg.appId);
+  assert.strictEqual(devCfg.extraMetadata.edition, 'dev');
+  assert.ok(fs.existsSync(path.join(root, devCfg.win.icon)) && fs.existsSync(path.join(root, mainCfg.win.icon)));
+  console.log('редакции и конфиг Dev-сборки — ок');
 
   console.log('\nВсе проверки пройдены.');
 })().catch((e) => { console.error('ПРОВАЛ:', e); process.exit(1); });

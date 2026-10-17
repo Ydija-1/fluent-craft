@@ -1,0 +1,47 @@
+{
+  "appId": "dev.fluentcraft.launcher.dev",
+  "productName": "FluentCraft Launcher Dev",
+  "directories": {
+    "output": "dist-dev"
+  },
+  "files": [
+    "main.js",
+    "preload.js",
+    "src/**/*",
+    "renderer/**/*",
+    "package.json"
+  ],
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": [
+          "x64"
+        ]
+      },
+      {
+        "target": "portable",
+        "arch": [
+          "x64"
+        ]
+      }
+    ],
+    "icon": "build/icon-dev.ico"
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "perMachine": false,
+    "language": "1049",
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "artifactName": "FluentCraft-Launcher-Dev-Setup-${version}.${ext}",
+    "shortcutName": "FluentCraft Launcher Dev"
+  },
+  "portable": {
+    "artifactName": "FluentCraft-Launcher-Dev-Portable-${version}.${ext}"
+  },
+  "extraMetadata": {
+    "edition": "dev"
+  }
+}

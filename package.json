@@ -11,7 +11,9 @@
     "start": "electron .",
     "dist": "electron-builder --win --x64 --publish never",
     "pack": "electron-builder --dir",
-    "check": "node scripts/check.js"
+    "check": "node scripts/check.js",
+    "start:dev": "node scripts/start-dev.js",
+    "dist:dev": "electron-builder --win --x64 --publish never --config electron-builder.dev.json"
   },
   "dependencies": {
     "adm-zip": "^0.5.16",

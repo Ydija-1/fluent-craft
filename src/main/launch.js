@@ -37,7 +37,7 @@ function javaMajor(vanilla, custom) {
   return Math.max(a || 8, b || 0);
 }
 
-async function launch(inst, account, { task, log, onExit }) {
+async function launch(inst, account, { task, log, onExit, verbose = false }) {
   if (running.has(inst.id)) throw new Error('Эта сборка уже запущена');
   if (!account) throw new Error('Не выбран аккаунт');
   const cfg = getConfig();
@@ -62,6 +62,11 @@ async function launch(inst, account, { task, log, onExit }) {
   const java = javaForInstall && javaMajor(vanilla, customJson) === javaMajor(vanilla, null)
     ? javaForInstall
     : await ensureJava(javaMajor(vanilla, customJson), (s) => task.update(s));
+
+  if (verbose) {
+    log(`[dev] Java: ${java.javaw}${java.custom ? ' (свой путь)' : ''}`);
+    log(`[dev] Версия: ${inst.mc}${loader.customId ? ' / ' + loader.customId : ''}${loader.forgeJar ? ' / forge: ' + loader.forgeJar : ''}`);
+  }
 
   // 4. запуск через minecraft-launcher-core
   const { Client } = require('minecraft-launcher-core');
@@ -101,7 +106,10 @@ async function launch(inst, account, { task, log, onExit }) {
     }
   });
   client.on('package-extract', () => task.update({ detail: 'Распаковка…', progress: null }));
-  client.on('arguments', () => task.done('Игра запущена'));
+  client.on('arguments', (args) => {
+    if (verbose) log(`[dev] Команда запуска: ${java.javaw} ${(Array.isArray(args) ? args : []).join(' ')}`);
+    task.done('Игра запущена');
+  });
   client.on('close', (code) => {
     running.delete(inst.id);
     instances.update(inst.id, { lastPlayed: Date.now() });

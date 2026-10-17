@@ -12,7 +12,10 @@ const modrinth = require('./modrinth');
 const curseforge = require('./curseforge');
 const launcher = require('./launch');
 const { createTask } = require('./tasks');
-const { systemMemoryMb } = require('./java');
+const { systemMemoryMb, findJava } = require('./java');
+const net = require('./net');
+const edition = require('./edition');
+const os = require('os');
 
 const SOURCES = { modrinth, curseforge };
 
@@ -35,6 +38,38 @@ function send(channel, payload) {
 
 function applyTheme(theme) {
   nativeTheme.themeSource = ['light', 'dark'].includes(theme) ? theme : 'system';
+}
+
+function requireDev() {
+  if (!getConfig().devMode && !edition.isDev) throw new Error('Включите режим разработчика в настройках');
+}
+
+function diagnostics() {
+  const cfg = { ...getConfig() };
+  if (cfg.curseforgeKey) cfg.curseforgeKey = '••••' + cfg.curseforgeKey.slice(-4);
+  const javas = [];
+  try {
+    for (const d of fs.readdirSync(P.java, { withFileTypes: true })) {
+      if (d.isDirectory() && findJava(path.join(P.java, d.name))) javas.push(d.name);
+    }
+  } catch { /* папки нет */ }
+  const log = net.getNetLog();
+  const rows = [
+    ['Редакция', edition.edition],
+    ['Версия лаунчера', app.getVersion()],
+    ['Electron', process.versions.electron],
+    ['Chromium', process.versions.chrome],
+    ['Node.js', process.versions.node],
+    ['Система', `${process.platform} ${process.arch} (${os.release()})`],
+    ['Память (всего / свободно), МБ', `${systemMemoryMb()} / ${Math.floor(os.freemem() / 1048576)}`],
+    ['Процессор', `${os.cpus().length} × ${(os.cpus()[0] || {}).model || '?'}`],
+    ['Папка данных', P.root],
+    ['Установленные Java', javas.join(', ') || 'нет'],
+    ['Сборок / аккаунтов', `${instances.list().length} / ${accounts.list().accounts.length}`],
+    ['Сетевые запросы (ошибок / всего)', `${log.filter((e) => e.status === 0 || e.status >= 400).length} / ${log.length}`],
+    ['Настройки', JSON.stringify(cfg)],
+  ];
+  return { rows, text: rows.map(([k, v]) => `${k}: ${v}`).join('\n') };
 }
 
 function failedNote(failed) {
@@ -114,6 +149,7 @@ function register() {
     try {
       await launcher.launch(inst, account, {
         task,
+        verbose: !!cfg.devMode,
         log: (line) => send('game:log', { id, line }),
         onExit: (code) => {
           send('game:state', { id, state: 'stopped', code });
@@ -195,6 +231,24 @@ function register() {
       } catch (e) { task.fail(e); }
     })();
     return true;
+  });
+
+  // ---------- инструменты разработчика ----------
+  handle('dev:diagnostics', () => { requireDev(); return diagnostics(); });
+  handle('dev:netlog', () => { requireDev(); return net.getNetLog(); });
+  handle('dev:devtools', () => { requireDev(); const w = win(); if (w) w.webContents.toggleDevTools(); });
+  handle('dev:reload', () => { requireDev(); const w = win(); if (w) w.webContents.reload(); });
+  handle('dev:openPath', (what) => {
+    requireDev();
+    const map = { data: P.root, minecraft: P.mc, java: P.java, cache: P.cache, instances: P.instances };
+    if (!map[what]) throw new Error('Неизвестная папка');
+    return shell.openPath(map[what]);
+  });
+  handle('dev:clearCache', () => {
+    requireDev();
+    let n = 0;
+    for (const f of fs.readdirSync(P.cache)) { fs.rmSync(path.join(P.cache, f), { recursive: true, force: true }); n++; }
+    return n;
   });
 }
 

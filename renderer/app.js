@@ -47,6 +47,8 @@ const NAV = [
   ['logs', 'Журнал', 'terminal'],
 ];
 
+const navList = () => (state.cfg.devMode ? [...NAV, ['dev', 'Разработка', 'code']] : NAV);
+
 function renderNav() {
   const nav = $('#nav');
   const acc = selectedAccount();
@@ -56,7 +58,7 @@ function renderNav() {
       h('div', { class: 'who' },
         h('b', null, acc ? acc.name : 'Нет аккаунта'),
         h('small', null, acc ? 'Оффлайн-аккаунт' : 'Добавьте, чтобы играть'))),
-    ...NAV.map(([id, label, ic]) => navItem(id, label, ic)),
+    ...navList().map(([id, label, ic]) => navItem(id, label, ic)),
     h('div', { class: 'nav-spacer' }),
     navItem('settings', 'Настройки', 'settings'));
 }
@@ -78,7 +80,8 @@ function render() {
   v.className = state.route === 'logs' ? 'fill' : '';
   v.scrollTop = 0;
   state.logBox = null;
-  const pages = { library: pageLibrary, browse: pageBrowse, accounts: pageAccounts, logs: pageLogs, settings: pageSettings };
+  clearInterval(state.devTimer);
+  const pages = { library: pageLibrary, browse: pageBrowse, accounts: pageAccounts, logs: pageLogs, settings: pageSettings, dev: pageDev };
   v.replaceChildren(pages[state.route]());
 }
 
@@ -684,6 +687,10 @@ function pageSettings() {
     row('Сворачивать лаунчер при запуске игры', null, switchEl(cfg.minimizeOnLaunch, (v) => save({ minimizeOnLaunch: v }))),
     row('Показывать снапшоты в списке версий', 'Список обновится после перезапуска', switchEl(cfg.showSnapshots, (v) => { save({ showSnapshots: v }); state.mcVersions = null; })),
 
+    h('h2', { class: 'group' }, 'Для разработчиков'),
+    row('Режим разработчика', 'Раздел «Разработка» в меню: диагностика, сетевой журнал, DevTools. Журнал запуска показывает полную команду Java.',
+      switchEl(cfg.devMode, async (v) => { await save({ devMode: v }); renderNav(); })),
+
     h('h2', { class: 'group' }, 'CurseForge'),
     row('API-ключ', 'Бесплатный ключ нужен для поиска и загрузки с CurseForge. Modrinth работает без ключа.',
       [keyIn, h('button', { class: 'btn', onclick: () => safe(() => call('app:openExternal', 'https://console.curseforge.com/')) }, icon('external'), 'Получить ключ')]),
@@ -692,6 +699,76 @@ function pageSettings() {
     row('FluentCraft Launcher ' + (info.version || ''), `Electron ${info.electron || ''} · ${info.platform || ''} ${info.arch || ''}`,
       h('button', { class: 'btn', onclick: () => safe(() => call('app:openDataDir')) }, icon('folder'), 'Папка данных')),
     h('p', { class: 'hint', style: { marginTop: '12px' } }, 'Создан вместе с ИИ (Claude, Anthropic). Minecraft — товарный знак Mojang Studios; этот лаунчер — неофициальный проект и не связан с Mojang или Microsoft.'));
+}
+
+// ======================= разработка =======================
+
+function netRow(e) {
+  const ok = e.status >= 200 && e.status < 400;
+  return h('div', { class: 'net-row', title: e.error ? `${e.url}\n${e.error}` : e.url },
+    h('span', { class: 't' }, new Date(e.t).toLocaleTimeString('ru')),
+    h('span', null, e.method),
+    h('span', { class: ok ? 'good' : 'bad' }, e.status || 'ERR'),
+    h('span', { class: 'ms' }, e.ms + ' мс'),
+    h('span', { class: 'u' }, e.url));
+}
+
+function pageDev() {
+  const kv = h('div', { class: 'kv' }, h('div', { class: 'skeleton', style: { gridColumn: '1 / -1' } }));
+  const net = h('div', { class: 'nettable', role: 'table', 'aria-label': 'Сетевые запросы' });
+  let diagText = '';
+
+  async function loadDiag() {
+    const d = await safe(() => call('dev:diagnostics'), null);
+    if (!d) return;
+    diagText = d.text;
+    kv.replaceChildren(...d.rows.flatMap(([k, v]) => [h('span', { class: 'k' }, k), h('span', { class: 'v mono' }, String(v))]));
+  }
+  async function loadNet() {
+    let list;
+    try { list = await call('dev:netlog'); } catch { return; }
+    net.replaceChildren(...(list.length
+      ? list.slice(0, 100).map(netRow)
+      : [h('div', { class: 'hint', style: { padding: '8px' } }, 'Запросов пока не было — откройте «Обзор», и они появятся здесь.')]));
+  }
+
+  const btn = (label, ic, fn, cls = '') => h('button', { class: 'btn ' + cls, onclick: fn }, icon(ic), label);
+  const open = (what) => () => safe(() => call('dev:openPath', what));
+
+  const root = h('div', null,
+    pageHead('Разработка', 'Инструменты для отладки лаунчера и сборок. Раздел виден только в режиме разработчика.'),
+    h('h2', { class: 'group' }, 'Инструменты'),
+    h('div', { class: 'toolbar' },
+      btn('Консоль DevTools', 'terminal', () => safe(() => call('dev:devtools'))),
+      btn('Перезагрузить интерфейс', 'refresh', () => safe(() => call('dev:reload')))),
+    h('h2', { class: 'group' }, 'Папки'),
+    h('div', { class: 'toolbar' },
+      btn('Данные', 'folder', open('data')),
+      btn('Minecraft', 'folder', open('minecraft')),
+      btn('Сборки', 'folder', open('instances')),
+      btn('Java', 'folder', open('java')),
+      btn('Кэш загрузок', 'folder', open('cache')),
+      btn('Очистить кэш', 'trash', async () => {
+        if (await confirmDialog({ title: 'Очистить кэш загрузок?', text: 'Скачанные установщики и архивы сборок будут удалены. Сами сборки и игра не пострадают.', okLabel: 'Очистить' })) {
+          const n = await safe(() => call('dev:clearCache'), null);
+          if (n !== null) toast(`Удалено файлов: ${n}`, 'ok');
+        }
+      }, 'danger')),
+    h('h2', { class: 'group' }, 'Диагностика'),
+    kv,
+    h('div', { class: 'toolbar', style: { marginTop: '8px' } },
+      btn('Копировать для отчёта об ошибке', 'copy', async () => {
+        try { await navigator.clipboard.writeText(diagText); toast('Диагностика скопирована', 'ok'); } catch { toast('Не удалось скопировать', 'err'); }
+      }),
+      btn('Обновить', 'refresh', loadDiag)),
+    h('h2', { class: 'group' }, 'Сетевые запросы'),
+    h('p', { class: 'hint', style: { margin: '0 0 8px' } }, 'Последние запросы к Modrinth, CurseForge, Mojang и загрузчикам. Список обновляется сам.'),
+    net);
+
+  loadDiag();
+  loadNet();
+  state.devTimer = setInterval(() => { if (state.route === 'dev') loadNet(); }, 3000);
+  return root;
 }
 
 // ======================= задачи =======================
@@ -726,6 +803,12 @@ async function init() {
   const params = new URLSearchParams(location.search);
   if (params.get('mica') === '1') document.body.classList.add('mica');
   document.body.classList.add('platform-' + (params.get('platform') || 'win32'));
+  if (params.get('edition') === 'dev') {
+    document.documentElement.dataset.edition = 'dev';
+    $('#edition-badge').hidden = false;
+    $('#tb-title').textContent = 'FluentCraft Launcher Dev';
+    document.title = 'FluentCraft Launcher Dev';
+  }
   applyTheme();
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
 

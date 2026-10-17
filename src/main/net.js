@@ -9,9 +9,15 @@ const UA = 'FluentCraftLauncher/1.0.0 (desktop launcher)';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// Последние сетевые запросы — показываются в разделе «Разработка»
+const netLog = [];
+function record(e) { netLog.push(e); if (netLog.length > 200) netLog.shift(); }
+const getNetLog = () => netLog.slice().reverse();
+
 async function request(url, { headers = {}, method = 'GET', body, retries = 2, timeout = 30000 } = {}) {
   let lastErr;
   for (let i = 0; i <= retries; i++) {
+    const t0 = Date.now();
     try {
       const res = await fetch(url, {
         method,
@@ -20,6 +26,7 @@ async function request(url, { headers = {}, method = 'GET', body, retries = 2, t
         redirect: 'follow',
         signal: AbortSignal.timeout(timeout),
       });
+      record({ t: t0, method, url: String(url).slice(0, 300), status: res.status, ms: Date.now() - t0 });
       if (res.status === 429 || res.status >= 500) {
         lastErr = new Error(`HTTP ${res.status} (${new URL(url).host})`);
         await sleep(600 * (i + 1));
@@ -27,6 +34,7 @@ async function request(url, { headers = {}, method = 'GET', body, retries = 2, t
       }
       return res;
     } catch (e) {
+      record({ t: t0, method, url: String(url).slice(0, 300), status: 0, ms: Date.now() - t0, error: e.message });
       lastErr = e;
       await sleep(400 * (i + 1));
     }
@@ -98,4 +106,4 @@ async function pool(items, limit, worker) {
   await Promise.all(Array.from({ length: Math.min(limit, items.length) }, run));
 }
 
-module.exports = { UA, request, fetchJson, download, hashFile, pool, sleep };
+module.exports = { UA, request, fetchJson, download, hashFile, pool, sleep, getNetLog };

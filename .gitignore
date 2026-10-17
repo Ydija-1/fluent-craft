@@ -3,3 +3,4 @@ dist/
 *.part
 .DS_Store
 Thumbs.db
+dist-dev/

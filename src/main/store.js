@@ -2,6 +2,7 @@
 const fs = require('fs');
 const path = require('path');
 const P = require('./paths');
+const { isDev } = require('./edition');
 
 function readJson(file, fallback) {
   try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return fallback; }
@@ -22,6 +23,7 @@ const DEFAULT_CONFIG = {
   curseforgeKey: '',
   minimizeOnLaunch: false,
   showSnapshots: false,
+  devMode: isDev,           // раздел «Разработка» и подробные журналы
 };
 
 let cache = null;

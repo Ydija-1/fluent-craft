@@ -370,3 +370,20 @@ select.input option { background: var(--bg-solid); color: var(--text); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }
 }
+
+/* ===== Dev-редакция: оранжевый акцент вместо голубого ===== */
+:root[data-edition="dev"] { --accent: #b85c00; --accent-hover: #c76a10; --accent-press: #d57a22; --on-accent: #ffffff; }
+:root[data-edition="dev"][data-theme="dark"] { --accent: #ffb454; --accent-hover: #f5a43c; --accent-press: #d98c2a; --on-accent: #000000; }
+.dev-badge { font: 600 10px/16px var(--font); padding: 0 6px; border-radius: 4px; background: var(--accent); color: var(--on-accent); letter-spacing: .5px; }
+
+/* ===== Раздел «Разработка» ===== */
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; }
+.kv { display: grid; grid-template-columns: 220px 1fr; gap: 6px 16px; padding: 14px 16px; border-radius: var(--r-md); background: var(--card); border: 1px solid var(--stroke); }
+.kv .k { color: var(--text-2); }
+.kv .v { word-break: break-all; }
+.nettable { border-radius: var(--r-md); background: var(--card); border: 1px solid var(--stroke); padding: 6px; max-height: 340px; overflow: auto; font: 12px/20px var(--mono); }
+.net-row { display: grid; grid-template-columns: 62px 46px 44px 72px 1fr; gap: 10px; padding: 1px 8px; border-radius: 4px; user-select: text; }
+.net-row:hover { background: var(--subtle-hover); }
+.net-row .u { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.net-row .good { color: var(--ok); } .net-row .bad { color: var(--err); }
+.net-row .t, .net-row .ms { color: var(--text-3); }
